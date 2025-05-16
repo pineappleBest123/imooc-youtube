@@ -3,6 +3,7 @@ package com.imooc.youtube.service;
 import com.alibaba.fastjson.JSONObject;
 import com.imooc.youtube.dao.UserDao;
 import com.imooc.youtube.domain.PageResult;
+import com.imooc.youtube.domain.RefreshTokenDetail;
 import com.imooc.youtube.domain.User;
 import com.imooc.youtube.domain.UserInfo;
 import com.imooc.youtube.domain.constant.UserConstant;
@@ -16,10 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class UserService {
@@ -149,4 +147,56 @@ public class UserService {
         }
         return new PageResult<>(total, list);
     }
+
+    public Map<String, Object> loginForDts(User user) throws Exception{
+        String phone = user.getPhone() == null ? "" : user.getPhone();
+        String email = user.getEmail() == null ? "" : user.getEmail();
+        if(StringUtils.isNullOrEmpty(phone) && StringUtils.isNullOrEmpty(email)){
+            throw new ConditionException("Please fill in the correct phone or email.");
+        }
+        User dbUser = null;
+        if (!StringUtils.isNullOrEmpty(phone)) {
+            dbUser = userDao.getUserByPhone(phone);
+        } else if (!StringUtils.isNullOrEmpty(email)) {
+            dbUser = userDao.getUserByEmail(email);
+        }
+        String password = user.getPassword();
+        String rawPassword;
+        try{
+            rawPassword = RSAUtil.decrypt(password);
+        }catch (Exception e){
+            throw new ConditionException("Failed to decrypt password");
+        }
+        String salt = dbUser.getSalt();
+        String md5Password = MD5Util.sign(rawPassword, salt, "UTF-8");
+        if(!md5Password.equals(dbUser.getPassword())){
+            throw new ConditionException("wrong password");
+        }
+        Long userId = dbUser.getId();
+        String accessToken = TokenUtil.generateToken(userId);
+        String refreshToken = TokenUtil.generateRefreshToken(userId);
+        userDao.deleteRefreshTokenByUserId(userId);
+        userDao.addRefreshToken(refreshToken, userId, new Date());
+        Map<String, Object> result = new HashMap<>();
+        result.put("accessToken", accessToken);
+        result.put("refreshToken", refreshToken);
+        return result;
+    }
+
+    public void logout(String refreshToken, Long userId) {
+        userDao.deleteRefreshToken(refreshToken, userId);
+    }
+
+    public String refreshAccessToken(String refreshToken) throws Exception {
+        RefreshTokenDetail refreshTokenDetail = userDao.getRefreshTokenDetail(refreshToken);
+        if (refreshTokenDetail == null) {
+            throw new ConditionException("555", "token expired.");
+        }
+        TokenUtil.verifyRefreshToken(refreshToken);
+        Long userId = refreshTokenDetail.getUserId();
+        return TokenUtil.generateToken(userId);
+    }
+
+
+
 }
