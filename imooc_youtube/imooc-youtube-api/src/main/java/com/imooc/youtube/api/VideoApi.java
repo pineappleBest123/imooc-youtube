@@ -2,12 +2,16 @@ package com.imooc.youtube.api;
 
 import com.imooc.youtube.api.support.UserSupport;
 import com.imooc.youtube.domain.*;
+import com.imooc.youtube.service.ElasticSearchService;
 import com.imooc.youtube.service.VideoService;
+import org.apache.mahout.cf.taste.common.TasteException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -19,12 +23,16 @@ public class VideoApi {
     @Autowired
     private UserSupport userSupport;
 
+    @Autowired
+    private ElasticSearchService elasticSearchService;
+
 
     @PostMapping("/videos")
     public JsonResponse<String> addVideos(@RequestBody Video video){
         Long userId = userSupport.getCurrentUserId();
         video.setUserId(userId);
         videoService.addVideos(video);
+        elasticSearchService.addVideo(video);
         return JsonResponse.success();
     }
 
@@ -139,6 +147,69 @@ public class VideoApi {
         return new JsonResponse<>(result);
     }
 
+    @PostMapping("/video-views")
+    public JsonResponse<String> addVideoView(@RequestBody VideoView videoView,
+                                             HttpServletRequest request){
+        Long userId;
+        try{
+            userId = userSupport.getCurrentUserId();
+            videoView.setUserId(userId);
+            videoService.addVideoView(videoView, request);
+        }catch (Exception e){
+            videoService.addVideoView(videoView, request);
+        }
+
+        elasticSearchService.updateVideoViewCount(videoView.getVideoId());
+        return JsonResponse.success();
+    }
 
 
+    @GetMapping("/video-view-counts")
+    public JsonResponse<Integer> getVideoViewCounts(@RequestParam Long videoId){
+        Integer count = videoService.getVideoViewCounts(videoId);
+        return new JsonResponse<>(count);
+    }
+
+    @GetMapping("/recommendations")
+    public JsonResponse<List<Video>> recommend() throws TasteException {
+        Long userId = userSupport.getCurrentUserId();
+        List<Video> list = videoService.recommend(userId);
+        return new JsonResponse<>(list);
+    }
+
+    @GetMapping("/visitor-video-recommendations")
+    public JsonResponse<List<Video>> getVisitorVideoRecommendations() {
+        List<Video> list = videoService.getVisitorVideoRecommendations();
+        return new JsonResponse<>(list);
+    }
+
+
+    @GetMapping("/video-recommendations")
+    public JsonResponse<List<Video>> getVideoRecommendations(@RequestParam String recommendType) {
+        Long userId = userSupport.getCurrentUserId();
+        List<Video> list = videoService.getVideoRecommendations(recommendType, userId);
+        return new JsonResponse<>(list);
+    }
+
+    @GetMapping("/video-frames")
+    public JsonResponse<List<VideoBinaryPicture>> captureVideoFrame(@RequestParam Long videoId,
+                                                                    @RequestParam String fileMd5) throws Exception {
+        List<VideoBinaryPicture> list = videoService.convertVideoToImage(videoId, fileMd5);
+        return new JsonResponse<>(list);
+    }
+
+
+    @GetMapping("/video-binary-images")
+    public JsonResponse<List<VideoBinaryPicture>> getVideoBinaryImages(@RequestParam Long videoId,
+                                                                       Long videoTimestamp,
+                                                                       String frameNo) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("videoId", videoId);
+        params.put("videoTimestamp", videoTimestamp);
+        params.put("frameNo", frameNo);
+        List<VideoBinaryPicture> list = videoService.getVideoBinaryImages(params);
+        return new JsonResponse<>(list);
+    }
 }
+
+

@@ -26,7 +26,7 @@ public class MD5Util {
             try {
                 return content.getBytes(charset);
             } catch (UnsupportedEncodingException var3) {
-                throw new RuntimeException("MD5签名过程中出现错误,指定的编码集错误");
+                throw new RuntimeException("Error during MD5 signing: invalid character encoding specified.");
             }
         } else {
             return content.getBytes();

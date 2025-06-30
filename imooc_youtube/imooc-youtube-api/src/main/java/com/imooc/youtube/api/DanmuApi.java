@@ -26,12 +26,9 @@ public class DanmuApi {
                                                String endTime) throws Exception {
         List<Danmu> list;
         try{
-
             userSupport.getCurrentUserId();
-
             list = danmuService.getDanmus(videoId, startTime, endTime);
         }catch (Exception ignored){
-
             list = danmuService.getDanmus(videoId, null, null);
         }
         return new JsonResponse<>(list);

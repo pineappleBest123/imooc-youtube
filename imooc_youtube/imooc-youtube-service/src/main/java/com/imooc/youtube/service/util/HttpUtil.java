@@ -90,7 +90,7 @@ public class HttpUtil {
         byte[] buffer = new byte[1024];
         if(responseCode >=200 && responseCode <300) {
             int i = bis.read(buffer);
-            while (( i != -1)) {
+            while (i != -1) {
                 os.write(buffer,0,i);
                 i = bis.read(buffer);
             }

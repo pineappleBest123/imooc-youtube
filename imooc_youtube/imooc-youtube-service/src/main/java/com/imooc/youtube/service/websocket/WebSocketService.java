@@ -100,7 +100,6 @@ public class WebSocketService {
         logger.info("user info:" + sessionId + "message:" + message);
         if(!StringUtil.isNullOrEmpty(message)){
             try{
-
                 for(Map.Entry<String, WebSocketService> entry : WEBSOCKET_MAP.entrySet()){
                     WebSocketService webSocketService = entry.getValue();
                     DefaultMQProducer danmusProducer = (DefaultMQProducer)APPLICATION_CONTEXT.getBean("danmusProducer");
@@ -111,7 +110,6 @@ public class WebSocketService {
                     RocketMQUtil.asyncSendMsg(danmusProducer, msg);
                 }
                 if(this.userId != null){
-
                     Danmu danmu = JSONObject.parseObject(message, Danmu.class);
                     danmu.setUserId(userId);
                     danmu.setCreateTime(new Date());
